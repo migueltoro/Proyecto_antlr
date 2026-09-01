@@ -1,0 +1,25 @@
+# maxflow.dat - Ejemplo de datos usando lista de pares para EDGES
+param n := 4;
+
+# Lista de aristas como pares (i,j)
+set EDGES := (0,1) (0,2) (1,3) (2,3) (3,4);
+
+# Capacidades máximas por arista (si se omite, se usa el default 1e30)
+param edgeMax :=
+(0,1) 10
+(0,2) 5
+(1,3) 15
+(2,3) 10
+(3,4) 20 ;
+
+# Capacidades mínimas por arista (opcional)
+# param edgeMin :=
+# (0,1) 0
+# (0,2) 0
+# (1,3) 0
+# (2,3) 0
+# (3,4) 0 ;
+
+# Fuentes y sumideros
+set SOURCES := 0;
+set SINKS := 4;

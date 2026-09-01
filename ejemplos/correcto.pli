@@ -1,0 +1,26 @@
+head section
+
+Integer N = 10
+Double C = -4.5
+
+goal section
+
+min x[i]
+
+constraints section
+
+x[i] <= 10, i in 1 .. N
+x[i] >= 0, i in 1 .. N
+sum(x[i], i in 1 .. N) - -2. x[4] >= 0
+
+bounds section
+
+0 <= x[i] <= 10, i in 1 .. N
+
+bin
+
+    b[i], i in 1 .. N
+
+int
+
+    x[i], i in 1 .. N

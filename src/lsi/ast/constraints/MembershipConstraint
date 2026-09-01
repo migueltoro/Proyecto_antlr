@@ -1,0 +1,11 @@
+package lsi.ast.constraints;
+
+import lsi.ast.common.Indexed;
+import lsi.ast.expressions.Expression;
+import lsi.ast.variables.Variable;
+
+public record MembershipConstraint(
+        Variable variable,
+        Indexed<Expression> values
+            ) implements Constraint {
+}

@@ -1,0 +1,25 @@
+head section
+
+Integer N = 10
+
+goal section 
+
+    min x[i] +
+
+constraints section
+
+x[i] <=
+
+y[i] =>
+
+allDifferent(x[i], y[i]
+
+cost[i] = MAX(x[i], y[i]
+
+or(>=,2,x[i] <= 10 | y[i] <= 20
+
+z[i] = PWL(x[i]) : (0,0) (10,100)
+
+@
+€
+@@

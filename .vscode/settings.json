@@ -1,0 +1,37 @@
+{
+    "antlr4.generation.mode": "external",
+
+    "antlr4.antlrJar": "${workspaceFolder}/lib/antlr-4.13.2-complete.jar",
+
+
+    "java.project.sourcePaths": [
+        "src"
+    ],
+
+    "java.project.outputPath": "bin",
+
+    "java.project.referencedLibraries": [
+        "lib/antlr-runtime-4.13.2.jar",
+        "lib/antlr-4.13.2-complete.jar"
+    ],
+
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-21",
+            "path": "C:\\Program Files\\Java\\jdk-21.0.12",
+            "default": true
+        }
+    ],
+
+    "java.debug.settings.onBuildFailureProceed": false,
+
+    "files.exclude": {
+        "**/.classpath": true,
+        "**/.project": true,
+        "**/.settings": true
+    },
+
+    "search.exclude": {
+        "**/bin": true
+    }
+}

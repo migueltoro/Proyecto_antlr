@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+       
+        {
+            "name": "Debug correcto.pli --patterns",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "lsi.main.Main",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "ejemplos/correcto.pli",
+                "--patterns"
+            ],
+            "console": "integratedTerminal",
+            "classPaths": [
+                "${workspaceFolder}/bin",
+                "${workspaceFolder}/lib/antlr-runtime-4.13.2.jar"
+            ]
+        }
+    ]
+}

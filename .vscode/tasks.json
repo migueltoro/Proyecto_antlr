@@ -1,0 +1,65 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "ANTLR Generate Parser",
+            "type": "shell",
+            "command": "java",
+            "args": [
+                "-jar",
+                "${workspaceFolder}/lib/antlr-4.13.2-complete.jar",
+                "-visitor",
+                "-listener",
+                "-package",
+                "lsi.parser",
+                "-o",
+                "${workspaceFolder}/src/lsi/parser",
+                "${workspaceFolder}/antlr/grammars/PLIModel.g4"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Java Compile",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "scripts\\compile.bat"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Run PLI",
+            "type": "process",
+            "command": "java",
+            "args": [
+                "-cp",
+                "bin;lib/antlr-runtime-4.13.2.jar",
+                "lsi.main.Main",
+                "scripts\\errores.lsi"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/c",
+                "scripts\\clean.bat"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean Generate Compile Run",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Clean",
+                "ANTLR Generate Parser",
+                "Java Compile",
+                "Run PLI"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}
