@@ -52,8 +52,7 @@ public final class PatternASTExamples {
         System.out.println("[PATTERN AST] Declaraciones Integer inicializadas: "
                 + matches.size());
         for (Match match : matches) {
-            IntLiteral initializer = initializerVar.valueIn(match);
-            System.out.println("  initializer = " + PatternASTPrinter.printValue(initializer));
+            printBindings(match, pattern);
         }
     }
 
@@ -76,8 +75,7 @@ public final class PatternASTExamples {
         System.out.println("[PATTERN AST] Restricciones relacionales >= 0: "
                 + matches.size());
         for (Match match : matches) {
-            LinearExpr left = leftVar.valueIn(match);
-            System.out.println("  left = " + PatternASTPrinter.printValue(left));
+            printBindings(match, pattern);
         }
     }
 
@@ -98,8 +96,7 @@ public final class PatternASTExamples {
         List<Match> matches = MATCHER.findAll(ast, xAtFourVar);
         System.out.println("[PATTERN AST] Variables x[4]: " + matches.size());
         for (Match match : matches) {
-            Variable variable = xAtFourVar.valueIn(match);
-            System.out.println("  xAtFour = " + PatternASTPrinter.printValue(variable));
+            printBindings(match, xAtFourVar);
         }
     }
 
@@ -121,8 +118,7 @@ public final class PatternASTExamples {
         System.out.println("[PATTERN AST] Expresiones lineales capturadas: "
                 + matches.size());
         for (Match match : matches) {
-            LinearExpr expression = expressionVar.valueIn(match);
-            System.out.println("  expression = " + PatternASTPrinter.printValue(expression));
+            printBindings(match, pattern);
         }
     }
 
@@ -130,5 +126,18 @@ public final class PatternASTExamples {
             PatternAST.Pattern pattern) {
         System.out.println("[PATTERN AST] " + description + ": "
                 + MATCHER.findAll(ast, pattern).size());
+    }
+
+    /**
+     * Imprime, para un resultado de matching, el valor ligado a cada
+     * variable declarada por el patrón (obtenidas con
+     * {@link PatternAST#variablesOf(PatternAST.Pattern)}), con el mismo
+     * nombre con el que aparecen en el patrón (prefijo {@code ?}).
+     */
+    private static void printBindings(Match match, PatternAST.Pattern pattern) {
+        for (PatternAST.VariableDeclaration variable : PatternAST.variablesOf(pattern).values()) {
+            Object value = match.bindings().get(variable.name());
+            System.out.println("  ?" + variable.name() + " = " + PatternASTPrinter.printValue(value));
+        }
     }
 }
