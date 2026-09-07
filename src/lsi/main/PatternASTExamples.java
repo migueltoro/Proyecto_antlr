@@ -53,7 +53,7 @@ public final class PatternASTExamples {
                 + matches.size());
         for (Match match : matches) {
             IntLiteral initializer = initializerVar.valueIn(match);
-            System.out.println("  initializer = " + initializer);
+            System.out.println("  initializer = " + PatternASTPrinter.printValue(initializer));
         }
     }
 
@@ -77,7 +77,7 @@ public final class PatternASTExamples {
                 + matches.size());
         for (Match match : matches) {
             LinearExpr left = leftVar.valueIn(match);
-            System.out.println("  left = " + left);
+            System.out.println("  left = " + PatternASTPrinter.printValue(left));
         }
     }
 
@@ -99,7 +99,7 @@ public final class PatternASTExamples {
         System.out.println("[PATTERN AST] Variables x[4]: " + matches.size());
         for (Match match : matches) {
             Variable variable = xAtFourVar.valueIn(match);
-            System.out.println("  xAtFour = " + variable);
+            System.out.println("  xAtFour = " + PatternASTPrinter.printValue(variable));
         }
     }
 
@@ -122,7 +122,7 @@ public final class PatternASTExamples {
                 + matches.size());
         for (Match match : matches) {
             LinearExpr expression = expressionVar.valueIn(match);
-            System.out.println("  expression = " + expression);
+            System.out.println("  expression = " + PatternASTPrinter.printValue(expression));
         }
     }
 

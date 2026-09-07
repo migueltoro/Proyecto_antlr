@@ -15,12 +15,15 @@ import lsi.ast.expressions.BinaryOperator;
 import lsi.ast.expressions.BooleanLiteral;
 import lsi.ast.expressions.CastExpr;
 import lsi.ast.expressions.DoubleLiteral;
+import lsi.ast.expressions.Expression;
 import lsi.ast.expressions.FunctionCallExpr;
 import lsi.ast.expressions.IdentifierExpr;
 import lsi.ast.expressions.IntLiteral;
 import lsi.ast.expressions.UnaryExpr;
 import lsi.ast.expressions.UnaryOperator;
+import lsi.ast.linear.LinearExpr;
 import lsi.ast.linear.LinearFactor;
+import lsi.ast.linear.LinearTerm;
 import lsi.ast.linear.Sum;
 import lsi.ast.matching.PatternAST.AllOfPattern;
 import lsi.ast.matching.PatternAST.AnyElementPattern;
@@ -81,6 +84,186 @@ public final class PatternASTPrinter {
             }
         }
         return text.toString();
+    }
+
+    /**
+     * Imprime en sintaxis AMPL un valor real del AST, típicamente un
+     * subárbol capturado por una variable de patrón (por ejemplo, el
+     * {@link LinearExpr} ligado a {@code ?expression} en un {@code Match}).
+     *
+     * <p>A diferencia de {@link #print(Pattern)}, que describe un patrón,
+     * este método describe un nodo AST concreto ya instanciado, sin partes
+     * comodín ni variables: todo el subárbol es real.</p>
+     */
+    public static String printValue(Object value) {
+        return formatNodeValue(value);
+    }
+
+    private static String formatNodeValue(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof LinearExpr linearExpr) {
+            return formatLinearTerms(linearExpr.terms());
+        }
+        if (value instanceof LinearTerm term) {
+            return formatLinearTerm(term);
+        }
+        if (value instanceof Variable variable) {
+            return formatVariableValue(variable);
+        }
+        if (value instanceof Set_of<?> setOf) {
+            return formatSetOfValue(setOf);
+        }
+        if (value instanceof Index index) {
+            return index.variable() + " in " + formatNodeValue(index.lowerBound())
+                    + ".." + formatNodeValue(index.upperBound());
+        }
+        if (value instanceof RelationalConstraint constraint) {
+            return formatNodeValue(constraint.left()) + " " + relOperatorSymbol(constraint.op())
+                    + " " + formatNodeValue(constraint.right());
+        }
+        if (value instanceof OneSideBound bound) {
+            return formatNodeValue(bound.variable()) + " " + relOperatorSymbol(bound.operator())
+                    + " " + formatNodeValue(bound.expression());
+        }
+        if (value instanceof TwoSideBound bound) {
+            return formatNodeValue(bound.lower()) + " <= " + formatNodeValue(bound.variable())
+                    + " <= " + formatNodeValue(bound.upper());
+        }
+        if (value instanceof VarDeclaration declaration) {
+            String initializer = declaration.initializer() == null ? ""
+                    : " := " + formatNodeValue(declaration.initializer());
+            return "param " + declaration.name() + initializer + ";";
+        }
+        if (value instanceof Expression expression) {
+            return formatExpressionValue(expression);
+        }
+        if (value instanceof IntegerType) {
+            return "integer";
+        }
+        if (value instanceof DoubleType) {
+            return "double";
+        }
+        if (value instanceof BooleanType) {
+            return "boolean";
+        }
+        if (value instanceof StringType) {
+            return "string";
+        }
+        if (value instanceof List<?> list) {
+            StringBuilder text = new StringBuilder("[");
+            for (int i = 0; i < list.size(); i++) {
+                if (i > 0) {
+                    text.append(", ");
+                }
+                text.append(formatNodeValue(list.get(i)));
+            }
+            return text.append("]").toString();
+        }
+        return Objects.toString(value);
+    }
+
+    private static String formatLinearTerms(List<LinearTerm> terms) {
+        if (terms == null || terms.isEmpty()) {
+            return "0";
+        }
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < terms.size(); i++) {
+            if (i > 0) {
+                text.append(" + ");
+            }
+            text.append(formatLinearTerm(terms.get(i)));
+        }
+        return text.toString();
+    }
+
+    private static String formatLinearTerm(LinearTerm term) {
+        if (term instanceof LinearFactor factor) {
+            String coefficient = formatNodeValue(factor.coefficient());
+            String variable = formatVariableValue(factor.variable());
+            return isOne(factor.coefficient()) ? variable : coefficient + " * " + variable;
+        }
+        if (term instanceof Sum sum) {
+            Set_of<LinearFactor> terms = sum.terms();
+            return "sum" + formatIndexesAndFilter(terms.indexes(), terms.filter())
+                    + " " + formatLinearTerm(terms.element());
+        }
+        return Objects.toString(term);
+    }
+
+    private static boolean isOne(Expression coefficient) {
+        return (coefficient instanceof IntLiteral il && il.value() == 1)
+                || (coefficient instanceof DoubleLiteral dl && dl.value() == 1.0);
+    }
+
+    private static String formatVariableValue(Variable variable) {
+        if (variable == null) {
+            return "null";
+        }
+        List<Expression> indexes = variable.indexes();
+        if (indexes == null || indexes.isEmpty()) {
+            return variable.name();
+        }
+        StringBuilder text = new StringBuilder(variable.name()).append('[');
+        for (int i = 0; i < indexes.size(); i++) {
+            if (i > 0) {
+                text.append(", ");
+            }
+            text.append(formatNodeValue(indexes.get(i)));
+        }
+        return text.append(']').toString();
+    }
+
+    private static String formatSetOfValue(Set_of<?> setOf) {
+        String element = formatNodeValue(setOf.element());
+        String header = formatIndexesAndFilter(setOf.indexes(), setOf.filter());
+        return header + " " + element;
+    }
+
+    private static String formatIndexesAndFilter(List<Index> indexes, Expression filter) {
+        StringBuilder text = new StringBuilder("{");
+        if (indexes != null) {
+            for (int i = 0; i < indexes.size(); i++) {
+                if (i > 0) {
+                    text.append(", ");
+                }
+                text.append(formatNodeValue(indexes.get(i)));
+            }
+        }
+        if (filter != null) {
+            text.append(" : ").append(formatNodeValue(filter));
+        }
+        return text.append("}").toString();
+    }
+
+    private static String formatExpressionValue(Expression expression) {
+        if (expression instanceof BinaryExpr binary) {
+            return "(" + formatNodeValue(binary.left()) + " " + binaryOperatorSymbol(binary.operator())
+                    + " " + formatNodeValue(binary.right()) + ")";
+        }
+        if (expression instanceof UnaryExpr unary) {
+            return unaryOperatorSymbol(unary.operator()) + formatNodeValue(unary.expression());
+        }
+        if (expression instanceof IdentifierExpr identifier) {
+            return identifier.name();
+        }
+        if (expression instanceof IntLiteral intLiteral) {
+            return Integer.toString(intLiteral.value());
+        }
+        if (expression instanceof DoubleLiteral doubleLiteral) {
+            return Double.toString(doubleLiteral.value());
+        }
+        if (expression instanceof BooleanLiteral booleanLiteral) {
+            return Boolean.toString(booleanLiteral.value());
+        }
+        if (expression instanceof CastExpr cast) {
+            return "(" + formatNodeValue(cast.targetType()) + ") " + formatNodeValue(cast.expression());
+        }
+        if (expression instanceof FunctionCallExpr call) {
+            return call.name() + "(" + formatNodeValue(call.arguments()) + ")";
+        }
+        return Objects.toString(expression);
     }
 
     private static String format(Pattern pattern) {
