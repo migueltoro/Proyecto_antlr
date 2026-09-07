@@ -73,7 +73,7 @@ public class Main {
                 boolean runPatternExamples = java.util.Arrays.stream(args)
                                 .anyMatch("--patterns"::equals);
                 if (runPatternExamples) {
-                        PatternExamples2.run(checkedAst);
+                        PatternASTExamples.run(checkedAst);
                 } else {
                         System.out.println("[PATTERN] Ejemplos desactivados. Usa --patterns para ejecutarlos.");
                 }
