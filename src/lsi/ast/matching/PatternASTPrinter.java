@@ -63,6 +63,94 @@ public final class PatternASTPrinter {
     }
 
     /**
+     * Imprime el patrón como un árbol indentado (al estilo de
+     * {@code PrettyAstPrinter}, pero para patrones): cada nodo del subárbol
+     * se muestra con sus campos, y las variables aparecen en el lugar donde
+     * se encuentran, marcadas con {@code ?nombre}. Útil para ver de un
+     * vistazo qué parte del subárbol es fija y cuál es instanciable.
+     */
+    public static String printTree(Pattern pattern) {
+        StringBuilder text = new StringBuilder();
+        printTree(pattern, text, 0);
+        return text.toString();
+    }
+
+    private static void printTree(Pattern pattern, StringBuilder text, int indent) {
+        if (pattern instanceof AnyPattern) {
+            appendIndented(text, indent, "_");
+            return;
+        }
+        if (pattern instanceof ValuePattern value) {
+            appendIndented(text, indent, formatValue(value.expected()));
+            return;
+        }
+        if (pattern instanceof PredicatePattern) {
+            appendIndented(text, indent, "<predicado>");
+            return;
+        }
+        if (pattern instanceof VariablePattern<?> variable) {
+            printTreeVariable(variable.name(), variable.expectedType().getSimpleName(),
+                    variable.innerPattern(), text, indent);
+            return;
+        }
+        if (pattern instanceof LinearExprVariable variable) {
+            printTreeVariable(variable.name(), "LinearExpr", variable.innerPattern(), text, indent);
+            return;
+        }
+        if (pattern instanceof NodePattern nodePattern) {
+            appendIndented(text, indent, nodePattern.nodeType().getSimpleName());
+            for (FieldPattern field : nodePattern.fields()) {
+                appendIndented(text, indent + 1, field.name() + ":");
+                printTree(field.pattern(), text, indent + 2);
+            }
+            return;
+        }
+        if (pattern instanceof ListPattern listPattern) {
+            appendIndented(text, indent, "[" + (listPattern.allowExtraElements() ? "..., " : "") + "]");
+            List<Pattern> elements = listPattern.elements();
+            for (int i = 0; i < elements.size(); i++) {
+                appendIndented(text, indent + 1, "[" + i + "]:");
+                printTree(elements.get(i), text, indent + 2);
+            }
+            return;
+        }
+        if (pattern instanceof AnyElementPattern anyElement) {
+            appendIndented(text, indent, "exists:");
+            printTree(anyElement.element(), text, indent + 1);
+            return;
+        }
+        if (pattern instanceof AllOfPattern allOf) {
+            appendIndented(text, indent, "allOf:");
+            for (Pattern sub : allOf.patterns()) {
+                printTree(sub, text, indent + 1);
+            }
+            return;
+        }
+        if (pattern instanceof AnyOfPattern anyOf) {
+            appendIndented(text, indent, "anyOf:");
+            for (Pattern sub : anyOf.patterns()) {
+                printTree(sub, text, indent + 1);
+            }
+            return;
+        }
+        appendIndented(text, indent, Objects.toString(pattern));
+    }
+
+    private static void printTreeVariable(String name, String typeName, Pattern innerPattern,
+            StringBuilder text, int indent) {
+        if (innerPattern instanceof AnyPattern) {
+            appendIndented(text, indent, "?" + name + " : " + typeName);
+            return;
+        }
+        appendIndented(text, indent, "?" + name + " : " + typeName + " tal que");
+        printTree(innerPattern, text, indent + 1);
+    }
+
+    private static void appendIndented(StringBuilder text, int indent, String line) {
+        text.append("  ".repeat(Math.max(0, indent))).append(line).append('\n');
+    }
+
+    /**
      * Imprime el patrón junto con la lista de variables que declara,
      * indicando el tipo esperado de cada una. Pensado para volcar por
      * consola de forma legible al definir un patrón.

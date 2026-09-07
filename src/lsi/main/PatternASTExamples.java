@@ -47,6 +47,7 @@ public final class PatternASTExamples {
                 PatternAST.field("initializer", initializerVar));
 
         System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(pattern));
+        printTree(pattern);
 
         List<Match> matches = MATCHER.findAll(ast, pattern);
         System.out.println("[PATTERN AST] Declaraciones Integer inicializadas: "
@@ -70,6 +71,7 @@ public final class PatternASTExamples {
                 PatternAST.field("right", zero));
 
         System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(pattern));
+        printTree(pattern);
 
         List<Match> matches = MATCHER.findAll(ast, pattern);
         System.out.println("[PATTERN AST] Restricciones relacionales >= 0: "
@@ -92,6 +94,7 @@ public final class PatternASTExamples {
                         PatternAST.field("indexes", PatternAST.anyElement(indexFour))));
 
         System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(xAtFourVar));
+        printTree(xAtFourVar);
 
         List<Match> matches = MATCHER.findAll(ast, xAtFourVar);
         System.out.println("[PATTERN AST] Variables x[4]: " + matches.size());
@@ -113,6 +116,7 @@ public final class PatternASTExamples {
                 PatternAST.field("right", PatternAST.any()));
 
         System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(pattern));
+        printTree(pattern);
 
         List<Match> matches = MATCHER.findAll(ast, pattern);
         System.out.println("[PATTERN AST] Expresiones lineales capturadas: "
@@ -120,6 +124,15 @@ public final class PatternASTExamples {
         for (Match match : matches) {
             printBindings(match, pattern);
         }
+    }
+
+    /**
+     * Imprime el patrón como árbol indentado, con las variables incrustadas
+     * en el lugar del subárbol que capturan (ver
+     * {@link PatternASTPrinter#printTree(PatternAST.Pattern)}).
+     */
+    private static void printTree(PatternAST.Pattern pattern) {
+        System.out.print(PatternASTPrinter.printTree(pattern));
     }
 
     private static void printCount(String description, AST ast,
