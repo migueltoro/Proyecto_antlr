@@ -99,10 +99,11 @@ public final class PatternASTMatcher {
         }
         if (pattern instanceof VariablePattern<?> variable) {
             return bindVariable(variable.name(), variable.expectedType(),
-                    candidate, bindings);
+                    variable.innerPattern(), candidate, bindings);
         }
         if (pattern instanceof LinearExprVariable variable) {
-            return bindVariable(variable.name(), LinearExpr.class, candidate, bindings);
+            return bindVariable(variable.name(), LinearExpr.class,
+                    variable.innerPattern(), candidate, bindings);
         }
         if (pattern instanceof NodePattern nodePattern) {
             if (candidate == null || !nodePattern.nodeType().isInstance(candidate)) {
@@ -170,12 +171,20 @@ public final class PatternASTMatcher {
         return false;
     }
 
-    private boolean bindVariable(String name, Class<?> expectedType, Object candidate,
-            Bindings bindings) {
+    private boolean bindVariable(String name, Class<?> expectedType, Pattern innerPattern,
+            Object candidate, Bindings bindings) {
         if (candidate == null || !expectedType.isInstance(candidate)) {
             return false;
         }
-        return bindings.bind(name, candidate);
+        Bindings trial = bindings.copy();
+        if (!match(innerPattern, candidate, trial)) {
+            return false;
+        }
+        if (!trial.bind(name, candidate)) {
+            return false;
+        }
+        bindings.replaceWith(trial);
+        return true;
     }
 
     private static List<Object> childrenOf(Object node) {
@@ -244,6 +253,17 @@ public final class PatternASTMatcher {
     public record Match(Object node, Map<String, Object> bindings) {
         public Match {
             bindings = Map.copyOf(bindings);
+        }
+
+        /**
+         * Devuelve el valor capturado por la variable {@code name},
+         * comprobando en tiempo de ejecución que su tipo real es compatible
+         * con {@code expectedType}. Devuelve {@code null} si la variable no
+         * fue instanciada (o el patrón no la declaraba).
+         */
+        public <T> T get(String name, Class<T> expectedType) {
+            Object value = bindings.get(name);
+            return value == null ? null : expectedType.cast(value);
         }
     }
 

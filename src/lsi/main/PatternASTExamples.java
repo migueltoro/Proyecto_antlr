@@ -13,6 +13,7 @@ import lsi.ast.linear.LinearExpr;
 import lsi.ast.matching.PatternAST;
 import lsi.ast.matching.PatternASTMatcher;
 import lsi.ast.matching.PatternASTMatcher.Match;
+import lsi.ast.matching.PatternASTPrinter;
 import lsi.ast.types.IntegerType;
 import lsi.ast.variables.Variable;
 
@@ -39,21 +40,26 @@ public final class PatternASTExamples {
     }
 
     private static void runInitializedIntegerDeclarationExample(AST ast) {
+        PatternAST.VariablePattern<IntLiteral> initializerVar =
+                PatternAST.variable("initializer", IntLiteral.class);
         PatternAST.Pattern pattern = PatternAST.node(VarDeclaration.class,
                 PatternAST.field("type", PatternAST.node(IntegerType.class)),
-                PatternAST.field("initializer",
-                        PatternAST.variable("initializer", IntLiteral.class)));
+                PatternAST.field("initializer", initializerVar));
+
+        System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(pattern));
 
         List<Match> matches = MATCHER.findAll(ast, pattern);
         System.out.println("[PATTERN AST] Declaraciones Integer inicializadas: "
                 + matches.size());
         for (Match match : matches) {
-            System.out.println("  initializer = "
-                    + match.bindings().get("initializer"));
+            IntLiteral initializer = initializerVar.valueIn(match);
+            System.out.println("  initializer = " + initializer);
         }
     }
 
     private static void runGreaterEqualZeroExample(AST ast) {
+        PatternAST.VariablePattern<LinearExpr> leftVar =
+                PatternAST.variable("left", LinearExpr.class);
         PatternAST.Pattern zero = PatternAST.anyOf(
                 PatternAST.node(IntLiteral.class,
                         PatternAST.field("value", PatternAST.value(0))),
@@ -61,42 +67,62 @@ public final class PatternASTExamples {
                         PatternAST.field("value", PatternAST.value(0.0))));
         PatternAST.Pattern pattern = PatternAST.node(RelationalConstraint.class,
                 PatternAST.field("op", PatternAST.value(RelOperator.GE)),
-                PatternAST.field("left",
-                        PatternAST.variable("left", LinearExpr.class)),
+                PatternAST.field("left", leftVar),
                 PatternAST.field("right", zero));
+
+        System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(pattern));
 
         List<Match> matches = MATCHER.findAll(ast, pattern);
         System.out.println("[PATTERN AST] Restricciones relacionales >= 0: "
                 + matches.size());
         for (Match match : matches) {
-            System.out.println("  left = " + match.bindings().get("left"));
+            LinearExpr left = leftVar.valueIn(match);
+            System.out.println("  left = " + left);
         }
     }
 
     private static void runIndexedVariableExample(AST ast) {
         PatternAST.Pattern indexFour = PatternAST.node(IntLiteral.class,
                 PatternAST.field("value", PatternAST.value(4)));
-        PatternAST.Pattern pattern = PatternAST.node(Variable.class,
-                PatternAST.field("name", PatternAST.value("x")),
-                PatternAST.field("indexes", PatternAST.anyElement(indexFour)));
+        // La variable liga el subárbol "Variable" completo (nombre, índices,
+        // ...), pero solo cuando ese subárbol coincide con el patrón interno:
+        // nombre "x" e indexado por el literal 4 en alguna posición.
+        PatternAST.VariablePattern<Variable> xAtFourVar = PatternAST.variable(
+                "xAtFour", Variable.class,
+                PatternAST.node(Variable.class,
+                        PatternAST.field("name", PatternAST.value("x")),
+                        PatternAST.field("indexes", PatternAST.anyElement(indexFour))));
 
-        System.out.println("[PATTERN AST] Variables x[4]: "
-                + MATCHER.findAll(ast, pattern).size());
+        System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(xAtFourVar));
+
+        List<Match> matches = MATCHER.findAll(ast, xAtFourVar);
+        System.out.println("[PATTERN AST] Variables x[4]: " + matches.size());
+        for (Match match : matches) {
+            Variable variable = xAtFourVar.valueIn(match);
+            System.out.println("  xAtFour = " + variable);
+        }
     }
 
     private static void runLinearExpressionVariableExample(AST ast) {
+        // Captura el subárbol LinearExpr completo del lado izquierdo, pero
+        // solo si contiene al menos un término (patrón interno no trivial).
+        PatternAST.Pattern nonEmpty = PatternAST.predicate(value ->
+                value instanceof LinearExpr expr && !expr.terms().isEmpty());
+        PatternAST.LinearExprVariable expressionVar =
+                PatternAST.linearExprVariable("expression", nonEmpty);
         PatternAST.Pattern pattern = PatternAST.node(RelationalConstraint.class,
-                PatternAST.field("left",
-                        PatternAST.linearExprVariable("expression")),
+                PatternAST.field("left", expressionVar),
                 PatternAST.field("op", PatternAST.value(RelOperator.GE)),
                 PatternAST.field("right", PatternAST.any()));
+
+        System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(pattern));
 
         List<Match> matches = MATCHER.findAll(ast, pattern);
         System.out.println("[PATTERN AST] Expresiones lineales capturadas: "
                 + matches.size());
         for (Match match : matches) {
-            System.out.println("  expression = "
-                    + match.bindings().get("expression"));
+            LinearExpr expression = expressionVar.valueIn(match);
+            System.out.println("  expression = " + expression);
         }
     }
 

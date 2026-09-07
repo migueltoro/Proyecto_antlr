@@ -1,9 +1,13 @@
 package lsi.ast.matching;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
+
+import lsi.ast.linear.LinearExpr;
 
 /**
  * Árbol independiente para describir patrones sobre el AST del lenguaje.
@@ -37,20 +41,102 @@ public final class PatternAST {
         }
     }
 
-    public record VariablePattern<T>(String name, Class<T> expectedType)
+    public record VariablePattern<T>(String name, Class<T> expectedType, Pattern innerPattern)
             implements Pattern {
         public VariablePattern {
+            Objects.requireNonNull(name, "name cannot be null");
+            Objects.requireNonNull(expectedType, "expectedType cannot be null");
+            Objects.requireNonNull(innerPattern, "innerPattern cannot be null");
+        }
+
+        /**
+         * Recupera de forma tipada el subárbol instanciado para esta
+         * variable en un resultado de matching. Devuelve {@code null} si el
+         * patrón no declaraba esta variable o no llegó a instanciarse.
+         */
+        public T valueIn(PatternASTMatcher.Match match) {
+            Object value = match.bindings().get(name);
+            return value == null ? null : expectedType.cast(value);
+        }
+    }
+
+    /**
+     * Variable especializada para capturar un subárbol {@link LinearExpr}
+     * completo, opcionalmente restringido por un patrón interno.
+     */
+    public record LinearExprVariable(String name, Pattern innerPattern) implements Pattern {
+        public LinearExprVariable {
+            Objects.requireNonNull(name, "name cannot be null");
+            Objects.requireNonNull(innerPattern, "innerPattern cannot be null");
+        }
+
+        public LinearExpr valueIn(PatternASTMatcher.Match match) {
+            Object value = match.bindings().get(name);
+            return value == null ? null : LinearExpr.class.cast(value);
+        }
+    }
+
+    /**
+     * Describe una variable declarada dentro de un patrón: su nombre y el
+     * tipo que se espera que tenga el valor instanciado.
+     */
+    public record VariableDeclaration(String name, Class<?> expectedType) {
+        public VariableDeclaration {
             Objects.requireNonNull(name, "name cannot be null");
             Objects.requireNonNull(expectedType, "expectedType cannot be null");
         }
     }
 
     /**
-     * Variable especializada para capturar una expresión lineal completa.
+     * Recorre un patrón y devuelve todas las variables que declara,
+     * indexadas por nombre, junto con el tipo esperado de cada una.
+     *
+     * <p>Permite inspeccionar qué valores podrá consultar quien ejecute el
+     * patrón, sin necesidad de ejecutarlo antes contra un AST.</p>
      */
-    public record LinearExprVariable(String name) implements Pattern {
-        public LinearExprVariable {
-            Objects.requireNonNull(name, "name cannot be null");
+    public static Map<String, VariableDeclaration> variablesOf(Pattern pattern) {
+        Map<String, VariableDeclaration> variables = new LinkedHashMap<>();
+        collectVariables(pattern, variables);
+        return Map.copyOf(variables);
+    }
+
+    private static void collectVariables(Pattern pattern,
+            Map<String, VariableDeclaration> out) {
+        if (pattern instanceof VariablePattern<?> variable) {
+            declare(out, variable.name(), variable.expectedType());
+            collectVariables(variable.innerPattern(), out);
+        } else if (pattern instanceof LinearExprVariable variable) {
+            declare(out, variable.name(), LinearExpr.class);
+            collectVariables(variable.innerPattern(), out);
+        } else if (pattern instanceof NodePattern nodePattern) {
+            for (FieldPattern field : nodePattern.fields()) {
+                collectVariables(field.pattern(), out);
+            }
+        } else if (pattern instanceof ListPattern listPattern) {
+            for (Pattern element : listPattern.elements()) {
+                collectVariables(element, out);
+            }
+        } else if (pattern instanceof AnyElementPattern anyElement) {
+            collectVariables(anyElement.element(), out);
+        } else if (pattern instanceof AllOfPattern allOf) {
+            for (Pattern sub : allOf.patterns()) {
+                collectVariables(sub, out);
+            }
+        } else if (pattern instanceof AnyOfPattern anyOf) {
+            for (Pattern sub : anyOf.patterns()) {
+                collectVariables(sub, out);
+            }
+        }
+    }
+
+    private static void declare(Map<String, VariableDeclaration> out, String name,
+            Class<?> expectedType) {
+        VariableDeclaration declaration = new VariableDeclaration(name, expectedType);
+        VariableDeclaration existing = out.putIfAbsent(name, declaration);
+        if (existing != null && !existing.expectedType().equals(expectedType)) {
+            throw new IllegalStateException("Variable '" + name
+                    + "' declared with conflicting types: " + existing.expectedType()
+                    + " and " + expectedType);
         }
     }
 
@@ -104,11 +190,20 @@ public final class PatternAST {
     }
 
     public static <T> VariablePattern<T> variable(String name, Class<T> expectedType) {
-        return new VariablePattern<>(name, expectedType);
+        return new VariablePattern<>(name, expectedType, any());
+    }
+
+    public static <T> VariablePattern<T> variable(String name, Class<T> expectedType,
+            Pattern innerPattern) {
+        return new VariablePattern<>(name, expectedType, innerPattern);
     }
 
     public static LinearExprVariable linearExprVariable(String name) {
-        return new LinearExprVariable(name);
+        return new LinearExprVariable(name, any());
+    }
+
+    public static LinearExprVariable linearExprVariable(String name, Pattern innerPattern) {
+        return new LinearExprVariable(name, innerPattern);
     }
 
     public static ValuePattern value(Object expected) {
