@@ -130,7 +130,7 @@ public final class PatternASTExamples {
 
     private static void printBindings(List<Match> matches, String id) {
         for (Match match : matches) {
-            System.out.println("  ?" + id + " = " + PatternPrinter.printValue(match.get(id)));
+            System.out.println(id + " = " + PatternPrinter.printValue(match.get(id)));
         }
     }
 }
