@@ -1,18 +1,7 @@
 package lsi.visitor.ast;
 
 import lsi.ast.AST;
-//import lsi.ast.Objective;
-import lsi.ast.common.Index;
-import lsi.ast.common.Set_of;
-import lsi.ast.declarations.Declaration;
-import lsi.ast.declarations.FunctionDeclaration;
-import lsi.ast.declarations.VarDeclaration;
-import lsi.ast.expressions.*;
-import lsi.ast.linear.*;
-import lsi.ast.types.*;
-import lsi.ast.variables.Variable;
-import lsi.ast.bounds.*;
-import lsi.ast.constraints.*;
+import static lsi.ast.AST.*;
 
 import java.util.List;
 import java.util.Objects;
@@ -21,7 +10,7 @@ import java.util.Objects;
  * 
  * PrettyAstPrinter: imprime una representación legible e indentada del AST
  * 
- * concreto definido en lsi.ast.*.
+ * concreto definido en lsi.ast.
  * 
  * Diseñado para la estructura de clases/records de tu proyecto.
  */
@@ -200,11 +189,11 @@ public final class PrettyAstPrinter {
             visitLinearFactor(lf);
             return;
         }
-        if (elem instanceof lsi.ast.constraints.Constraint c) {
+        if (elem instanceof Constraint c) {
             visitConstraint(c);
             return;
         }
-        if (elem instanceof lsi.ast.bounds.Bound b) {
+        if (elem instanceof Bound b) {
             visitBound(b);
             return;
         }

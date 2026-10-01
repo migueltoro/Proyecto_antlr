@@ -1,156 +1,136 @@
 package lsi.main;
 
 import java.util.List;
+//import java.util.Map;
 
 import lsi.ast.AST;
-import lsi.ast.constraints.RelOperator;
-import lsi.ast.constraints.RelationalConstraint;
-import lsi.ast.declarations.VarDeclaration;
-import lsi.ast.expressions.DoubleLiteral;
-import lsi.ast.expressions.Expression;
-import lsi.ast.expressions.IntLiteral;
-import lsi.ast.linear.LinearExpr;
-import lsi.ast.matching.PatternAST;
-import lsi.ast.matching.PatternASTMatcher;
-import lsi.ast.matching.PatternASTMatcher.Match;
-import lsi.ast.matching.PatternASTPrinter;
-import lsi.ast.types.IntegerType;
-import lsi.ast.variables.Variable;
+import lsi.ast.Pattern;
+import lsi.ast.PatternMatcher;
+import lsi.ast.PatternMatcher.Match;
+import lsi.ast.PatternPrinter;
 
 public final class PatternASTExamples {
-
-    private static final PatternASTMatcher MATCHER = new PatternASTMatcher();
+    private static final PatternMatcher MATCHER = new PatternMatcher();
 
     private PatternASTExamples() {
     }
 
     public static void run(AST ast) {
-        runCategoryExamples(ast);
+        printCategoryCount("Declaraciones", ast, AST.Declaration.class);
+        printCategoryCount("Expresiones", ast, AST.Expression.class);
+        printCategoryCount("Restricciones", ast, AST.Constraint.class);
+        printCategoryCount("Cotas", ast, AST.Bound.class);
         runInitializedIntegerDeclarationExample(ast);
         runGreaterEqualZeroExample(ast);
         runIndexedVariableExample(ast);
-        runLinearExpressionVariableExample(ast);
+        runNonEmptyLinearExpressionExample(ast);
     }
 
-    private static void runCategoryExamples(AST ast) {
-        printCount("Declaraciones", ast, PatternAST.node(lsi.ast.declarations.Declaration.class));
-        printCount("Expresiones", ast, PatternAST.node(Expression.class));
-        printCount("Restricciones", ast, PatternAST.node(lsi.ast.constraints.Constraint.class));
-        printCount("Cotas", ast, PatternAST.node(lsi.ast.bounds.Bound.class));
+    private static void printCategoryCount(String description, AST ast, Class<?> category) {
+        Pattern pattern = captureOfType("category", category);
+        System.out.println("[PATTERN AST2] " + description + ": " + MATCHER.findAll(ast, pattern).size());
     }
 
     private static void runInitializedIntegerDeclarationExample(AST ast) {
-        PatternAST.VariablePattern<IntLiteral> initializerVar =
-                PatternAST.variable("initializer", IntLiteral.class);
-        PatternAST.Pattern pattern = PatternAST.node(VarDeclaration.class,
-                PatternAST.field("type", PatternAST.node(IntegerType.class)),
-                PatternAST.field("initializer", initializerVar));
+        Pattern integerType = Pattern.Node.of(AST.IntegerType.class, List.of());
+        Pattern initializer = Pattern.Node.of(AST.IntLiteral.class,
+                List.of(Pattern.Capture.of("initializerValue", Pattern.Wildcard.of())));
+        Pattern declaration = Pattern.Node.of(AST.VarDeclaration.class,
+                List.of(integerType, Pattern.Wildcard.of(), initializer));
 
-        System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(pattern));
-        printTree(pattern);
-
-        List<Match> matches = MATCHER.findAll(ast, pattern);
-        System.out.println("[PATTERN AST] Declaraciones Integer inicializadas: "
-                + matches.size());
-        for (Match match : matches) {
-            printBindings(match, pattern);
-        }
+        printPattern(declaration);
+        List<Match> matches = MATCHER.findAll(ast, declaration);
+        System.out.println("[PATTERN AST2] Declaraciones Integer inicializadas: " + matches.size());
+        printBindings(matches, "initializerValue");
     }
 
     private static void runGreaterEqualZeroExample(AST ast) {
-        PatternAST.VariablePattern<LinearExpr> leftVar =
-                PatternAST.variable("left", LinearExpr.class);
-        PatternAST.Pattern zero = PatternAST.anyOf(
-                PatternAST.node(IntLiteral.class,
-                        PatternAST.field("value", PatternAST.value(0))),
-                PatternAST.node(DoubleLiteral.class,
-                        PatternAST.field("value", PatternAST.value(0.0))));
-        PatternAST.Pattern pattern = PatternAST.node(RelationalConstraint.class,
-                PatternAST.field("op", PatternAST.value(RelOperator.GE)),
-                PatternAST.field("left", leftVar),
-                PatternAST.field("right", zero));
+        Pattern relation = Pattern.PGuard.of(
+                Pattern.Capture.of("relation", Pattern.Wildcard.of()),
+                bindings -> {
+                    Pattern.Node node = bindings.get("relation");
+                    return node.type() == AST.RelationalConstraint.class
+                            && node.children().get(1) instanceof Pattern.Constant operator
+                            && operator.value() == AST.RelOperator.GE
+                            && isZero(node.children().get(2));
+                });
 
-        System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(pattern));
-        printTree(pattern);
-
-        List<Match> matches = MATCHER.findAll(ast, pattern);
-        System.out.println("[PATTERN AST] Restricciones relacionales >= 0: "
-                + matches.size());
-        for (Match match : matches) {
-            printBindings(match, pattern);
-        }
+        printPattern(relation);
+        List<Match> matches = MATCHER.findAll(ast, relation);
+        System.out.println("[PATTERN AST2] Restricciones relacionales >= 0: " + matches.size());
+        printBindings(matches, "relation");
     }
 
     private static void runIndexedVariableExample(AST ast) {
-        PatternAST.Pattern indexFour = PatternAST.node(IntLiteral.class,
-                PatternAST.field("value", PatternAST.value(4)));
-        // La variable liga el subárbol "Variable" completo (nombre, índices,
-        // ...), pero solo cuando ese subárbol coincide con el patrón interno:
-        // nombre "x" e indexado por el literal 4 en alguna posición.
-        PatternAST.VariablePattern<Variable> xAtFourVar = PatternAST.variable(
-                "xAtFour", Variable.class,
-                PatternAST.node(Variable.class,
-                        PatternAST.field("name", PatternAST.value("x")),
-                        PatternAST.field("indexes", PatternAST.anyElement(indexFour))));
+        Pattern variable = Pattern.PGuard.of(
+                Pattern.Capture.of("variable", Pattern.Wildcard.of()),
+                bindings -> isVariableNamedAndIndexedBy(
+                        bindings.get("variable"), "x", 4));
 
-        System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(xAtFourVar));
-        printTree(xAtFourVar);
+        printPattern(variable);
+        List<Match> matches = MATCHER.findAll(ast, variable);
+        System.out.println("[PATTERN AST2] Variables x[4]: " + matches.size());
+        printBindings(matches, "variable");
+    }
 
-        List<Match> matches = MATCHER.findAll(ast, xAtFourVar);
-        System.out.println("[PATTERN AST] Variables x[4]: " + matches.size());
-        for (Match match : matches) {
-            printBindings(match, xAtFourVar);
+    private static void runNonEmptyLinearExpressionExample(AST ast) {
+        Pattern expression = Pattern.PGuard.of(
+                Pattern.Capture.of("expression", Pattern.Wildcard.of()),
+                bindings -> {
+                    Pattern.Node node = bindings.get("expression");
+                    return node.type() == AST.LinearExpr.class
+                            && !node.children().isEmpty()
+                            && node.children().get(0) instanceof Pattern.Node terms
+                            && !terms.children().isEmpty();
+                });
+
+        printPattern(expression);
+        List<Match> matches = MATCHER.findAll(ast, expression);
+        System.out.println("[PATTERN AST2] Expresiones lineales no vacías: " + matches.size());
+        printBindings(matches, "expression");
+    }
+
+    private static Pattern captureOfType(String id, Class<?> type) {
+        return Pattern.PGuard.of(
+                Pattern.Capture.of(id, Pattern.Wildcard.of()),
+                bindings -> type.isAssignableFrom(bindings.get(id).type()));
+    }
+
+    private static boolean isZero(Pattern value) {
+        if (!(value instanceof Pattern.Node literal) || literal.children().size() != 1
+                || !(literal.children().get(0) instanceof Pattern.Constant constant)) {
+            return false;
         }
+        return (literal.type() == AST.IntLiteral.class && Integer.valueOf(0).equals(constant.value()))
+                || (literal.type() == AST.DoubleLiteral.class && Double.valueOf(0.0).equals(constant.value()));
     }
 
-    private static void runLinearExpressionVariableExample(AST ast) {
-        // Captura el subárbol LinearExpr completo del lado izquierdo, pero
-        // solo si contiene al menos un término (patrón interno no trivial).
-        PatternAST.Pattern nonEmpty = PatternAST.predicate(value ->
-                value instanceof LinearExpr expr && !expr.terms().isEmpty());
-        PatternAST.LinearExprVariable expressionVar =
-                PatternAST.linearExprVariable("expression", nonEmpty);
-        PatternAST.Pattern pattern = PatternAST.node(RelationalConstraint.class,
-                PatternAST.field("left", expressionVar),
-                PatternAST.field("op", PatternAST.value(RelOperator.GE)),
-                PatternAST.field("right", PatternAST.any()));
-
-        System.out.println("[PATTERN AST] " + PatternASTPrinter.describe(pattern));
-        printTree(pattern);
-
-        List<Match> matches = MATCHER.findAll(ast, pattern);
-        System.out.println("[PATTERN AST] Expresiones lineales capturadas: "
-                + matches.size());
-        for (Match match : matches) {
-            printBindings(match, pattern);
+    private static boolean isVariableNamedAndIndexedBy(Pattern.Node node, String name, int index) {
+        if (node.type() != AST.Variable.class || node.children().size() != 2
+                || !(node.children().get(0) instanceof Pattern.Constant variableName)
+                || !name.equals(variableName.value())
+                || !(node.children().get(1) instanceof Pattern.Node indexes)) {
+            return false;
         }
+        return indexes.children().stream().anyMatch(value -> isIntegerLiteral(value, index));
     }
 
-    /**
-     * Imprime el patrón como árbol indentado, con las variables incrustadas
-     * en el lugar del subárbol que capturan (ver
-     * {@link PatternASTPrinter#printTree(PatternAST.Pattern)}).
-     */
-    private static void printTree(PatternAST.Pattern pattern) {
-        System.out.print(PatternASTPrinter.printTree(pattern));
+    private static boolean isIntegerLiteral(Pattern value, int expected) {
+        return value instanceof Pattern.Node literal
+                && literal.type() == AST.IntLiteral.class
+                && literal.children().size() == 1
+                && literal.children().get(0) instanceof Pattern.Constant constant
+                && Integer.valueOf(expected).equals(constant.value());
     }
 
-    private static void printCount(String description, AST ast,
-            PatternAST.Pattern pattern) {
-        System.out.println("[PATTERN AST] " + description + ": "
-                + MATCHER.findAll(ast, pattern).size());
+    private static void printPattern(Pattern pattern) {
+        System.out.println("[PATTERN AST2] " + PatternPrinter.print(pattern));
+        System.out.print(PatternPrinter.printTree(pattern));
     }
 
-    /**
-     * Imprime, para un resultado de matching, el valor ligado a cada
-     * variable declarada por el patrón (obtenidas con
-     * {@link PatternAST#variablesOf(PatternAST.Pattern)}), con el mismo
-     * nombre con el que aparecen en el patrón (prefijo {@code ?}).
-     */
-    private static void printBindings(Match match, PatternAST.Pattern pattern) {
-        for (PatternAST.VariableDeclaration variable : PatternAST.variablesOf(pattern).values()) {
-            Object value = match.bindings().get(variable.name());
-            System.out.println("  ?" + variable.name() + " = " + PatternASTPrinter.printValue(value));
+    private static void printBindings(List<Match> matches, String id) {
+        for (Match match : matches) {
+            System.out.println("  ?" + id + " = " + PatternPrinter.printValue(match.get(id)));
         }
     }
 }
