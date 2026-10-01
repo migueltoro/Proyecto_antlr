@@ -28,7 +28,7 @@ public final class PatternASTExamples {
 
     private static void printCategoryCount(String description, AST ast, Class<?> category) {
         Pattern pattern = captureOfType("category", category);
-        System.out.println("[PATTERN AST2] " + description + ": " + MATCHER.findAll(ast, pattern).size());
+        System.out.println("[PATTERN AST] " + description + ": " + MATCHER.findAll(ast, pattern).size());
     }
 
     private static void runInitializedIntegerDeclarationExample(AST ast) {
@@ -40,7 +40,7 @@ public final class PatternASTExamples {
 
         printPattern(declaration);
         List<Match> matches = MATCHER.findAll(ast, declaration);
-        System.out.println("[PATTERN AST2] Declaraciones Integer inicializadas: " + matches.size());
+        System.out.println("[PATTERN AST] Declaraciones Integer inicializadas: " + matches.size());
         printBindings(matches, "initializerValue");
     }
 
@@ -57,7 +57,7 @@ public final class PatternASTExamples {
 
         printPattern(relation);
         List<Match> matches = MATCHER.findAll(ast, relation);
-        System.out.println("[PATTERN AST2] Restricciones relacionales >= 0: " + matches.size());
+        System.out.println("[PATTERN AST] Restricciones relacionales >= 0: " + matches.size());
         printBindings(matches, "relation");
     }
 
@@ -69,7 +69,7 @@ public final class PatternASTExamples {
 
         printPattern(variable);
         List<Match> matches = MATCHER.findAll(ast, variable);
-        System.out.println("[PATTERN AST2] Variables x[4]: " + matches.size());
+        System.out.println("[PATTERN AST] Variables x[4]: " + matches.size());
         printBindings(matches, "variable");
     }
 
@@ -86,7 +86,7 @@ public final class PatternASTExamples {
 
         printPattern(expression);
         List<Match> matches = MATCHER.findAll(ast, expression);
-        System.out.println("[PATTERN AST2] Expresiones lineales no vacías: " + matches.size());
+        System.out.println("[PATTERN AST] Expresiones lineales no vacías: " + matches.size());
         printBindings(matches, "expression");
     }
 
@@ -124,7 +124,7 @@ public final class PatternASTExamples {
     }
 
     private static void printPattern(Pattern pattern) {
-        System.out.println("[PATTERN AST2] " + PatternPrinter.print(pattern));
+        System.out.println("[PATTERN AST] " + PatternPrinter.print(pattern));
         System.out.print(PatternPrinter.printTree(pattern));
     }
 
