@@ -74,89 +74,101 @@ public final class PatternMatcher {
     }
 
     private boolean match(Pattern pattern, Object candidate, Bindings bindings) {
-        if (pattern instanceof Wildcard) {
-            return true;
-        }
-        if (pattern instanceof Constant constant) {
-            return Objects.equals(constant.value(), candidate);
-        }
-        if (pattern instanceof Capture capture) {
-            Bindings trial = bindings.copy();
-            if (!match(capture.body(), candidate, trial)
-                    || !trial.bind(capture.id(), asNode(candidate))) {
-                return false;
-            }
-            bindings.replaceWith(trial);
-            return true;
-        }
-        if (pattern instanceof PGuard guard) {
-            Bindings trial = bindings.copy();
-            if (!match(guard.pattern(), candidate, trial)
-                    || !guard.condition().test(trial.snapshot())) {
-                return false;
-            }
-            bindings.replaceWith(trial);
-            return true;
-        }
-        if (pattern instanceof Node nodePattern) {
-            if (candidate == null || !isInstance(nodePattern.type(), candidate)) {
-                return false;
-            }
-            List<Object> children = componentsOf(candidate);
-            if (children.size() != nodePattern.children().size()) {
-                return false;
-            }
-
-            Bindings trial = bindings.copy();
-            for (int i = 0; i < children.size(); i++) {
-                if (!match(nodePattern.children().get(i), children.get(i), trial)) {
-                    return false;
+        return switch (pattern) {
+            case Wildcard ignored -> true;
+            case Constant constant -> Objects.equals(constant.value(), candidate);
+            case Capture capture -> {
+                Bindings trial = bindings.copy();
+                boolean matched = match(capture.body(), candidate, trial)
+                        && trial.bind(capture.id(), asNode(candidate));
+                if (matched) {
+                    bindings.replaceWith(trial);
                 }
+                yield matched;
             }
-            bindings.replaceWith(trial);
-            return true;
-        }
-        throw new IllegalArgumentException("Unsupported pattern type: " + pattern.getClass().getName());
+            case PGuard guard -> {
+                Bindings trial = bindings.copy();
+                boolean matched = match(guard.pattern(), candidate, trial)
+                        && guard.condition().test(trial.snapshot());
+                if (matched) {
+                    bindings.replaceWith(trial);
+                }
+                yield matched;
+            }
+            case Node nodePattern -> {
+                if (candidate == null || !isInstance(nodePattern.type(), candidate)) {
+                    yield false;
+                }
+                List<Object> children = componentsOf(candidate);
+                if (children.size() != nodePattern.children().size()) {
+                    yield false;
+                }
+
+                Bindings trial = bindings.copy();
+                boolean matched = true;
+                for (int i = 0; i < children.size(); i++) {
+                    if (!match(nodePattern.children().get(i), children.get(i), trial)) {
+                        matched = false;
+                        break;
+                    }
+                }
+                if (matched) {
+                    bindings.replaceWith(trial);
+                }
+                yield matched;
+            }
+        };
     }
 
     private static List<Object> childrenOf(Object candidate) {
         if (candidate == null || isScalar(candidate.getClass())) {
             return List.of();
         }
-        if (candidate instanceof Iterable<?> iterable) {
-            List<Object> children = new ArrayList<>();
-            iterable.forEach(children::add);
-            return children;
-        }
-        if (candidate.getClass().isArray()) {
-            List<Object> children = new ArrayList<>(Array.getLength(candidate));
-            for (int i = 0; i < Array.getLength(candidate); i++) {
-                children.add(Array.get(candidate, i));
+        return switch (candidate) {
+            case Iterable<?> iterable -> {
+                List<Object> children = new ArrayList<>();
+                iterable.forEach(children::add);
+                yield children;
             }
-            return children;
-        }
-        return candidate.getClass().isRecord() ? componentsOf(candidate) : List.of();
+            case Object[] array -> new ArrayList<>(java.util.Arrays.asList(array));
+            default -> {
+                if (!candidate.getClass().isArray()) {
+                    yield candidate.getClass().isRecord() ? componentsOf(candidate) : List.of();
+                }
+                List<Object> children = new ArrayList<>(Array.getLength(candidate));
+                for (int i = 0; i < Array.getLength(candidate); i++) {
+                    children.add(Array.get(candidate, i));
+                }
+                yield children;
+            }
+        };
     }
 
     private static List<Object> componentsOf(Object candidate) {
-        if (candidate instanceof Iterable<?> iterable) {
-            List<Object> children = new ArrayList<>();
-            iterable.forEach(children::add);
-            return children;
-        }
-        if (candidate.getClass().isArray()) {
-            List<Object> children = new ArrayList<>(Array.getLength(candidate));
-            for (int i = 0; i < Array.getLength(candidate); i++) {
-                children.add(Array.get(candidate, i));
+        return switch (candidate) {
+            case Iterable<?> iterable -> {
+                List<Object> children = new ArrayList<>();
+                iterable.forEach(children::add);
+                yield children;
             }
-            return children;
-        }
-        List<Accessor> accessors = ACCESSORS.computeIfAbsent(candidate.getClass(), PatternMatcher::accessorsOf);
-        List<Object> children = new ArrayList<>(accessors.size());
-        for (Accessor accessor : accessors) {
-            children.add(accessor.read(candidate));
-        }
-        return children;
+            case Object[] array -> new ArrayList<>(java.util.Arrays.asList(array));
+            default -> {
+                if (candidate.getClass().isArray()) {
+                    List<Object> children = new ArrayList<>(Array.getLength(candidate));
+                    for (int i = 0; i < Array.getLength(candidate); i++) {
+                        children.add(Array.get(candidate, i));
+                    }
+                    yield children;
+                }
+                List<Accessor> accessors = ACCESSORS.computeIfAbsent(candidate.getClass(),
+                        PatternMatcher::accessorsOf);
+                List<Object> children = new ArrayList<>(accessors.size());
+                for (Accessor accessor : accessors) {
+                    children.add(accessor.read(candidate));
+                }
+                yield children;
+            }
+        };
     }
 
     private static List<Accessor> accessorsOf(Class<?> type) {
@@ -175,50 +187,68 @@ public final class PatternMatcher {
         if (value == null) {
             return Node.of(Void.class, List.of());
         }
-        Class<?> type = value.getClass();
-        List<Pattern> children = new ArrayList<>();
-        if (value instanceof Iterable<?> iterable) {
-            iterable.forEach(child -> children.add(asPatternValue(child)));
-        } else if (type.isArray()) {
-            for (int i = 0; i < Array.getLength(value); i++) {
-                children.add(asPatternValue(Array.get(value, i)));
+        return switch (value) {
+            case Iterable<?> iterable -> {
+                List<Pattern> children = new ArrayList<>();
+                iterable.forEach(child -> children.add(asPatternValue(child)));
+                yield Node.of(value.getClass(), children);
             }
-        } else if (type.isRecord()) {
-            for (Object child : componentsOf(value)) {
-                children.add(asPatternValue(child));
+            case Object[] array -> {
+                List<Pattern> children = new ArrayList<>(array.length);
+                for (Object child : array) {
+                    children.add(asPatternValue(child));
+                }
+                yield Node.of(value.getClass(), children);
             }
-        } else {
-            children.add(Constant.of(value));
-        }
-        return Node.of(type, children);
+            default -> {
+                Class<?> type = value.getClass();
+                if (type.isArray()) {
+                    List<Pattern> children = new ArrayList<>(Array.getLength(value));
+                    for (int i = 0; i < Array.getLength(value); i++) {
+                        children.add(asPatternValue(Array.get(value, i)));
+                    }
+                    yield Node.of(type, children);
+                }
+                if (type.isRecord()) {
+                    List<Pattern> children = new ArrayList<>();
+                    for (Object child : componentsOf(value)) {
+                        children.add(asPatternValue(child));
+                    }
+                    yield Node.of(type, children);
+                }
+                yield Node.of(type, List.of(Constant.of(value)));
+            }
+        };
     }
 
     private static Pattern asPatternValue(Object value) {
         if (value == null) {
             return Node.of(Void.class, List.of());
         }
-        return value != null && (value.getClass().isRecord()
-                || value instanceof Iterable<?>
-                || value.getClass().isArray())
-                ? asNode(value)
-                : Constant.of(value);
+        return switch (value) {
+            case Iterable<?> ignored -> asNode(value);
+            case Object[] ignored -> asNode(value);
+            default -> value.getClass().isRecord() || value.getClass().isArray()
+                    ? asNode(value)
+                    : Constant.of(value);
+        };
     }
 
     private static boolean isInstance(Class<?> expectedType, Object value) {
         if (expectedType.isInstance(value)) {
             return true;
         }
-        if (!expectedType.isPrimitive()) {
-            return false;
-        }
-        return (expectedType == boolean.class && value instanceof Boolean)
-                || (expectedType == byte.class && value instanceof Byte)
-                || (expectedType == short.class && value instanceof Short)
-                || (expectedType == int.class && value instanceof Integer)
-                || (expectedType == long.class && value instanceof Long)
-                || (expectedType == float.class && value instanceof Float)
-                || (expectedType == double.class && value instanceof Double)
-                || (expectedType == char.class && value instanceof Character);
+        return expectedType.isPrimitive() && switch (value) {
+            case Boolean ignored -> expectedType == boolean.class;
+            case Byte ignored -> expectedType == byte.class;
+            case Short ignored -> expectedType == short.class;
+            case Integer ignored -> expectedType == int.class;
+            case Long ignored -> expectedType == long.class;
+            case Float ignored -> expectedType == float.class;
+            case Double ignored -> expectedType == double.class;
+            case Character ignored -> expectedType == char.class;
+            default -> false;
+        };
     }
 
     private static boolean isScalar(Class<?> type) {

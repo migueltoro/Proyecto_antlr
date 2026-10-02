@@ -19,22 +19,13 @@ public final class PatternPrinter {
 
     public static String print(Pattern pattern) {
         Objects.requireNonNull(pattern, "pattern cannot be null");
-        if (pattern instanceof Wildcard) {
-            return "_";
-        }
-        if (pattern instanceof Constant constant) {
-            return formatValue(constant.value());
-        }
-        if (pattern instanceof Capture capture) {
-            return "?" + capture.id() + "@" + print(capture.body());
-        }
-        if (pattern instanceof PGuard guard) {
-            return "guard(" + print(guard.pattern()) + ", <predicate>)";
-        }
-        if (pattern instanceof Node node) {
-            return node.type().getSimpleName() + "(" + formatPatterns(node.children()) + ")";
-        }
-        throw new IllegalArgumentException("Unsupported pattern type: " + pattern.getClass().getName());
+        return switch (pattern) {
+            case Wildcard ignored -> "_";
+            case Constant constant -> formatValue(constant.value());
+            case Capture capture -> "**" + capture.id() + "**" + print(capture.body());
+            case PGuard guard -> "guard(" + print(guard.pattern()) + ", <predicate>)";
+            case Node node -> node.type().getSimpleName() + "(" + formatPatterns(node.children()) + ")";
+        };
     }
 
     public static String printTree(Pattern pattern) {
@@ -49,24 +40,24 @@ public final class PatternPrinter {
     }
 
     private static void appendPatternTree(Pattern pattern, StringBuilder result, int indent) {
-        if (pattern instanceof Wildcard) {
-            appendLine(result, indent, "_");
-        } else if (pattern instanceof Constant constant) {
-            appendLine(result, indent, formatValue(constant.value()));
-        } else if (pattern instanceof Capture capture) {
-            appendLine(result, indent, "?" + capture.id() + ":");
-            appendPatternTree(capture.body(), result, indent + 1);
-        } else if (pattern instanceof PGuard guard) {
-            appendLine(result, indent, "guard:");
-            appendPatternTree(guard.pattern(), result, indent + 1);
-        } else if (pattern instanceof Node node) {
-            appendLine(result, indent, node.type().getSimpleName());
-            for (int i = 0; i < node.children().size(); i++) {
-                appendLine(result, indent + 1, "[" + i + "]:");
-                appendPatternTree(node.children().get(i), result, indent + 2);
+        switch (pattern) {
+            case Wildcard ignored -> appendLine(result, indent, "_");
+            case Constant constant -> appendLine(result, indent, formatValue(constant.value()));
+            case Capture capture -> {
+                appendLine(result, indent, "**" + capture.id() + "**:");
+                appendPatternTree(capture.body(), result, indent + 1);
             }
-        } else {
-            throw new IllegalArgumentException("Unsupported pattern type: " + pattern.getClass().getName());
+            case PGuard guard -> {
+                appendLine(result, indent, "guard:");
+                appendPatternTree(guard.pattern(), result, indent + 1);
+            }
+            case Node node -> {
+                appendLine(result, indent, node.type().getSimpleName());
+                for (int i = 0; i < node.children().size(); i++) {
+                    appendLine(result, indent + 1, "[" + i + "]:");
+                    appendPatternTree(node.children().get(i), result, indent + 2);
+                }
+            }
         }
     }
 
@@ -82,46 +73,48 @@ public final class PatternPrinter {
     }
 
     private static String formatValue(Object value) {
-        if (value == null) {
-            return "null";
-        }
-        if (value instanceof String text) {
-            return "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
-        }
-        if (value instanceof Character character) {
-            return "'" + character + "'";
-        }
-        if (value instanceof Node node) {
-            if (node.type() == Void.class) {
-                return "null";
-            }
-            return node.type().getSimpleName() + "(" + formatPatterns(node.children()) + ")";
-        }
-        if (value instanceof Iterable<?> iterable) {
-            StringBuilder result = new StringBuilder("[");
-            Iterator<?> iterator = iterable.iterator();
-            while (iterator.hasNext()) {
-                if (result.length() > 1) {
-                    result.append(", ");
+        return switch (value) {
+            case null -> "null";
+            case String text -> "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+            case Character character -> "'" + character + "'";
+            case Node node -> node.type() == Void.class
+                    ? "null"
+                    : node.type().getSimpleName() + "(" + formatPatterns(node.children()) + ")";
+            case Iterable<?> iterable -> {
+                StringBuilder result = new StringBuilder("[");
+                Iterator<?> iterator = iterable.iterator();
+                while (iterator.hasNext()) {
+                    if (result.length() > 1) {
+                        result.append(", ");
+                    }
+                    result.append(formatValue(iterator.next()));
                 }
-                result.append(formatValue(iterator.next()));
+                yield result.append(']').toString();
             }
-            return result.append(']').toString();
-        }
-        if (value.getClass().isArray()) {
-            StringBuilder result = new StringBuilder("[");
-            for (int i = 0; i < Array.getLength(value); i++) {
-                if (i > 0) {
-                    result.append(", ");
+            case Object[] array -> {
+                StringBuilder result = new StringBuilder("[");
+                for (int i = 0; i < array.length; i++) {
+                    if (i > 0) {
+                        result.append(", ");
+                    }
+                    result.append(formatValue(array[i]));
                 }
-                result.append(formatValue(Array.get(value, i)));
+                yield result.append(']').toString();
             }
-            return result.append(']').toString();
-        }
-        if (value.getClass().isRecord()) {
-            return formatRecord(value);
-        }
-        return Objects.toString(value);
+            default -> {
+                if (value.getClass().isArray()) {
+                    StringBuilder result = new StringBuilder("[");
+                    for (int i = 0; i < Array.getLength(value); i++) {
+                        if (i > 0) {
+                            result.append(", ");
+                        }
+                        result.append(formatValue(Array.get(value, i)));
+                    }
+                    yield result.append(']').toString();
+                }
+                yield value.getClass().isRecord() ? formatRecord(value) : Objects.toString(value);
+            }
+        };
     }
 
     private static String formatRecord(Object value) {
