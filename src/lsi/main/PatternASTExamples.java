@@ -6,8 +6,8 @@ import java.util.List;
 import lsi.ast.AST;
 import lsi.pattern.Pattern;
 import lsi.pattern.PatternMatcher;
-import lsi.pattern.PatternMatcher.Match;
 import lsi.pattern.PatternPrinter;
+import lsi.pattern.PatternMatcher.Match;
 
 public final class PatternASTExamples {
     private static final PatternMatcher MATCHER = new PatternMatcher();
@@ -27,7 +27,7 @@ public final class PatternASTExamples {
     }
 
     private static void printCategoryCount(String description, AST ast, Class<?> category) {
-        Pattern pattern = variableOfType("category", category);
+        Pattern pattern = captureOfType("category", category);
         System.out.println("[PATTERN AST] " + description + ": " + MATCHER.findAll(ast, pattern).size());
     }
 
@@ -90,7 +90,7 @@ public final class PatternASTExamples {
         printBindings(matches, "expression");
     }
 
-    private static Pattern variableOfType(String id, Class<?> type) {
+    private static Pattern captureOfType(String id, Class<?> type) {
         return Pattern.Guard.of(
                 Pattern.Variable.of(id, Pattern.Wildcard.of()),
                 bindings -> type.isAssignableFrom(bindings.get(id).type()));
