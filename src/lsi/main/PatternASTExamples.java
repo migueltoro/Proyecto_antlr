@@ -8,6 +8,7 @@ import lsi.pattern.Pattern;
 import lsi.pattern.PatternMatcher;
 import lsi.pattern.PatternPrinter;
 import lsi.pattern.PatternMatcher.Match;
+import lsi.pattern.Transform;
 
 public final class PatternASTExamples {
     private static final PatternMatcher MATCHER = new PatternMatcher();
@@ -20,10 +21,23 @@ public final class PatternASTExamples {
         printCategoryCount("Expresiones", ast, AST.Expression.class);
         printCategoryCount("Restricciones", ast, AST.Constraint.class);
         printCategoryCount("Cotas", ast, AST.Bound.class);
+        System.out.println("=================================================");
+        System.out.println("[PATTERN AST] Declaraciones Integer inicializadas: ");  
         runInitializedIntegerDeclarationExample(ast);
+         System.out.println("=================================================");
+        System.out.println("[PATTERN AST] Transformación: "); 
+        runZeroToOneTransformationExample(ast);
+        /* 
+        System.out.println("=================================================");
+        System.out.println("[PATTERN Equal Zero] : ");
         runGreaterEqualZeroExample(ast);
+        System.out.println("=================================================");
+        System.out.println("[PATTERN Indexed Variable] : ");
         runIndexedVariableExample(ast);
+        System.out.println("=================================================");
+        System.out.println("[PATTERN Non-Empty Linear Expression] : ");
         runNonEmptyLinearExpressionExample(ast);
+        */
     }
 
     private static void printCategoryCount(String description, AST ast, Class<?> category) {
@@ -34,21 +48,21 @@ public final class PatternASTExamples {
     private static void runInitializedIntegerDeclarationExample(AST ast) {
         Pattern integerType = Pattern.Node.of(AST.IntegerType.class, List.of());
         Pattern initializer = Pattern.Node.of(AST.IntLiteral.class,
-                List.of(Pattern.Variable.of("initializerValue", Pattern.Wildcard.of())));
+                List.of(Pattern.Variable.of("x", Pattern.Wildcard.of())));
         Pattern declaration = Pattern.Node.of(AST.VarDeclaration.class,
                 List.of(integerType, Pattern.Wildcard.of(), initializer));
 
         printPattern(declaration);
         List<Match> matches = MATCHER.findAll(ast, declaration);
         System.out.println("[PATTERN AST] Declaraciones Integer inicializadas: " + matches.size());
-        printBindings(matches, "initializerValue");
+        printBindings(matches, "x");
     }
 
-    private static void runGreaterEqualZeroExample(AST ast) {
+    public static void runGreaterEqualZeroExample(AST ast) {
         Pattern relation = Pattern.Guard.of(
-                Pattern.Variable.of("relation", Pattern.Wildcard.of()),
+                Pattern.Variable.of("r", Pattern.Wildcard.of()),
                 bindings -> {
-                    Pattern.Node node = bindings.get("relation");
+                    Pattern.Node node = bindings.get("r");
                     return node.type() == AST.RelationalConstraint.class
                             && node.children().get(1) instanceof Pattern.Constant operator
                             && operator.value() == AST.RelOperator.GE
@@ -58,26 +72,26 @@ public final class PatternASTExamples {
         printPattern(relation);
         List<Match> matches = MATCHER.findAll(ast, relation);
         System.out.println("[PATTERN AST] Restricciones relacionales >= 0: " + matches.size());
-        printBindings(matches, "relation");
+        printBindings(matches, "r");
     }
 
-    private static void runIndexedVariableExample(AST ast) {
+    public static void runIndexedVariableExample(AST ast) {
         Pattern variable = Pattern.Guard.of(
-                Pattern.Variable.of("variable", Pattern.Wildcard.of()),
+                Pattern.Variable.of("y", Pattern.Wildcard.of()),
                 bindings -> isVariableNamedAndIndexedBy(
-                        bindings.get("variable"), "x", 4));
+                        bindings.get("y"), "x", 4));
 
         printPattern(variable);
         List<Match> matches = MATCHER.findAll(ast, variable);
         System.out.println("[PATTERN AST] Variables x[4]: " + matches.size());
-        printBindings(matches, "variable");
+        printBindings(matches, "y");
     }
 
-    private static void runNonEmptyLinearExpressionExample(AST ast) {
+    public static void runNonEmptyLinearExpressionExample(AST ast) {
         Pattern expression = Pattern.Guard.of(
-                Pattern.Variable.of("expression", Pattern.Wildcard.of()),
+                Pattern.Variable.of("e", Pattern.Wildcard.of()),
                 bindings -> {
-                    Pattern.Node node = bindings.get("expression");
+                    Pattern.Node node = bindings.get("e");
                     return node.type() == AST.LinearExpr.class
                             && !node.children().isEmpty()
                             && node.children().get(0) instanceof Pattern.Node terms
@@ -87,7 +101,21 @@ public final class PatternASTExamples {
         printPattern(expression);
         List<Match> matches = MATCHER.findAll(ast, expression);
         System.out.println("[PATTERN AST] Expresiones lineales no vacías: " + matches.size());
-        printBindings(matches, "expression");
+        printBindings(matches, "e");
+    }
+
+    private static void runZeroToOneTransformationExample(AST ast) {
+        Pattern zeroLiteral = Pattern.Node.of(AST.IntLiteral.class,
+                List.of(Pattern.Constant.of(0)));
+        int zerosBefore = MATCHER.findAll(ast, zeroLiteral).size();
+        AST transformed = new Transform().transform(ast, zeroLiteral, AST.IntLiteral.of(1));
+        int zerosAfter = MATCHER.findAll(transformed, zeroLiteral).size();
+
+        System.out.println("[PATTERN TRANSFORM] Reemplazando IntLiteral(0) por IntLiteral(1)");
+        System.out.println("[PATTERN TRANSFORM] Coincidencias: " + zerosBefore);
+        System.out.println("[PATTERN TRANSFORM] IntLiteral(0) restantes: " + zerosAfter);
+        System.out.println("[PATTERN TRANSFORM] AST original sin modificar: "
+                + (MATCHER.findAll(ast, zeroLiteral).size() == zerosBefore));
     }
 
     private static Pattern captureOfType(String id, Class<?> type) {
