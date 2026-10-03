@@ -32,10 +32,10 @@ public final class PatternASTExamples {
     }
 
     private static void runInitializedIntegerDeclarationExample(AST ast) {
-        Pattern integerType = Pattern.NodePattern.of(AST.IntegerType.class, List.of());
-        Pattern initializer = Pattern.NodePattern.of(AST.IntLiteral.class,
+        Pattern integerType = Pattern.Node.of(AST.IntegerType.class, List.of());
+        Pattern initializer = Pattern.Node.of(AST.IntLiteral.class,
                 List.of(Pattern.Variable.of("initializerValue", Pattern.Wildcard.of())));
-        Pattern declaration = Pattern.NodePattern.of(AST.VarDeclaration.class,
+        Pattern declaration = Pattern.Node.of(AST.VarDeclaration.class,
                 List.of(integerType, Pattern.Wildcard.of(), initializer));
 
         printPattern(declaration);
@@ -48,7 +48,7 @@ public final class PatternASTExamples {
         Pattern relation = Pattern.Guard.of(
                 Pattern.Variable.of("relation", Pattern.Wildcard.of()),
                 bindings -> {
-                    Pattern.NodePattern node = bindings.get("relation");
+                    Pattern.Node node = bindings.get("relation");
                     return node.type() == AST.RelationalConstraint.class
                             && node.children().get(1) instanceof Pattern.Constant operator
                             && operator.value() == AST.RelOperator.GE
@@ -77,10 +77,10 @@ public final class PatternASTExamples {
         Pattern expression = Pattern.Guard.of(
                 Pattern.Variable.of("expression", Pattern.Wildcard.of()),
                 bindings -> {
-                    Pattern.NodePattern node = bindings.get("expression");
+                    Pattern.Node node = bindings.get("expression");
                     return node.type() == AST.LinearExpr.class
                             && !node.children().isEmpty()
-                            && node.children().get(0) instanceof Pattern.NodePattern terms
+                            && node.children().get(0) instanceof Pattern.Node terms
                             && !terms.children().isEmpty();
                 });
 
@@ -97,7 +97,7 @@ public final class PatternASTExamples {
     }
 
     private static boolean isZero(Pattern value) {
-        if (!(value instanceof Pattern.NodePattern literal) || literal.children().size() != 1
+        if (!(value instanceof Pattern.Node literal) || literal.children().size() != 1
                 || !(literal.children().get(0) instanceof Pattern.Constant constant)) {
             return false;
         }
@@ -105,18 +105,18 @@ public final class PatternASTExamples {
                 || (literal.type() == AST.DoubleLiteral.class && Double.valueOf(0.0).equals(constant.value()));
     }
 
-    private static boolean isVariableNamedAndIndexedBy(Pattern.NodePattern node, String name, int index) {
+    private static boolean isVariableNamedAndIndexedBy(Pattern.Node node, String name, int index) {
         if (node.type() != AST.Variable.class || node.children().size() != 2
                 || !(node.children().get(0) instanceof Pattern.Constant variableName)
                 || !name.equals(variableName.value())
-                || !(node.children().get(1) instanceof Pattern.NodePattern indexes)) {
+                || !(node.children().get(1) instanceof Pattern.Node indexes)) {
             return false;
         }
         return indexes.children().stream().anyMatch(value -> isIntegerLiteral(value, index));
     }
 
     private static boolean isIntegerLiteral(Pattern value, int expected) {
-        return value instanceof Pattern.NodePattern literal
+        return value instanceof Pattern.Node literal
                 && literal.type() == AST.IntLiteral.class
                 && literal.children().size() == 1
                 && literal.children().get(0) instanceof Pattern.Constant constant

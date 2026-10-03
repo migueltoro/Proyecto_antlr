@@ -5,19 +5,19 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
 
-public sealed interface Pattern permits Pattern.NodePattern, Pattern.Variable, Pattern.Wildcard,
+public sealed interface Pattern permits Pattern.Node, Pattern.Variable, Pattern.Wildcard,
         Pattern.Constant, Pattern.Guard {
 
-    record NodePattern(Class<?> type, List<Pattern> children) implements Pattern {
-        public NodePattern {
+    record Node(Class<?> type, List<Pattern> children) implements Pattern {
+        public Node {
             Objects.requireNonNull(type, "type cannot be null");
             children = List.copyOf(Objects.requireNonNull(children, "children cannot be null"));
         }
 
-        public static NodePattern of(Class<?> type, List<Pattern> children) {
+        public static Node of(Class<?> type, List<Pattern> children) {
             Objects.requireNonNull(type, "type cannot be null");
             Objects.requireNonNull(children, "children cannot be null");
-            return new NodePattern(type, children);
+            return new Node(type, children);
         }
     }
 
@@ -51,13 +51,13 @@ public sealed interface Pattern permits Pattern.NodePattern, Pattern.Variable, P
         }
     }
 
-    record Guard(Pattern pattern, Predicate<Map<String, NodePattern>> condition) implements Pattern {
+    record Guard(Pattern pattern, Predicate<Map<String, Node>> condition) implements Pattern {
         public Guard {
             Objects.requireNonNull(pattern, "pattern cannot be null");
             Objects.requireNonNull(condition, "condition cannot be null");
         }
 
-        public static Guard of(Pattern pattern, Predicate<Map<String, NodePattern>> condition) {
+        public static Guard of(Pattern pattern, Predicate<Map<String, Node>> condition) {
             Objects.requireNonNull(pattern, "pattern cannot be null");
             Objects.requireNonNull(condition, "condition cannot be null");
             return new Guard(pattern, condition);
