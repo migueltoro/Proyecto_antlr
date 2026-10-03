@@ -1,4 +1,4 @@
-package lsi.ast;
+package lsi.pattern;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -14,11 +14,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import lsi.ast.Pattern.Capture;
-import lsi.ast.Pattern.Constant;
-import lsi.ast.Pattern.Node;
-import lsi.ast.Pattern.PGuard;
-import lsi.ast.Pattern.Wildcard;
+import lsi.pattern.Pattern.Constant;
+import lsi.pattern.Pattern.Guard;
+import lsi.pattern.Pattern.NodePattern;
+import lsi.pattern.Pattern.Variable;
+import lsi.pattern.Pattern.Wildcard;
 
 public final class PatternMatcher {
     private static final Map<Class<?>, List<Accessor>> ACCESSORS = new ConcurrentHashMap<>();
@@ -77,16 +77,16 @@ public final class PatternMatcher {
         return switch (pattern) {
             case Wildcard ignored -> true;
             case Constant constant -> Objects.equals(constant.value(), candidate);
-            case Capture capture -> {
+            case Variable variable -> {
                 Bindings trial = bindings.copy();
-                boolean matched = match(capture.body(), candidate, trial)
-                        && trial.bind(capture.id(), asNode(candidate));
+                boolean matched = match(variable.body(), candidate, trial)
+                        && trial.bind(variable.id(), asNode(candidate));
                 if (matched) {
                     bindings.replaceWith(trial);
                 }
                 yield matched;
             }
-            case PGuard guard -> {
+            case Guard guard -> {
                 Bindings trial = bindings.copy();
                 boolean matched = match(guard.pattern(), candidate, trial)
                         && guard.condition().test(trial.snapshot());
@@ -95,7 +95,7 @@ public final class PatternMatcher {
                 }
                 yield matched;
             }
-            case Node nodePattern -> {
+            case NodePattern nodePattern -> {
                 if (candidate == null || !isInstance(nodePattern.type(), candidate)) {
                     yield false;
                 }
@@ -183,22 +183,22 @@ public final class PatternMatcher {
         return List.copyOf(accessors);
     }
 
-    private static Node asNode(Object value) {
+    private static NodePattern asNode(Object value) {
         if (value == null) {
-            return Node.of(Void.class, List.of());
+            return NodePattern.of(Void.class, List.of());
         }
         return switch (value) {
             case Iterable<?> iterable -> {
                 List<Pattern> children = new ArrayList<>();
                 iterable.forEach(child -> children.add(asPatternValue(child)));
-                yield Node.of(value.getClass(), children);
+                yield NodePattern.of(value.getClass(), children);
             }
             case Object[] array -> {
                 List<Pattern> children = new ArrayList<>(array.length);
                 for (Object child : array) {
                     children.add(asPatternValue(child));
                 }
-                yield Node.of(value.getClass(), children);
+                yield NodePattern.of(value.getClass(), children);
             }
             default -> {
                 Class<?> type = value.getClass();
@@ -207,23 +207,23 @@ public final class PatternMatcher {
                     for (int i = 0; i < Array.getLength(value); i++) {
                         children.add(asPatternValue(Array.get(value, i)));
                     }
-                    yield Node.of(type, children);
+                    yield NodePattern.of(type, children);
                 }
                 if (type.isRecord()) {
                     List<Pattern> children = new ArrayList<>();
                     for (Object child : componentsOf(value)) {
                         children.add(asPatternValue(child));
                     }
-                    yield Node.of(type, children);
+                    yield NodePattern.of(type, children);
                 }
-                yield Node.of(type, List.of(Constant.of(value)));
+                yield NodePattern.of(type, List.of(Constant.of(value)));
             }
         };
     }
 
     private static Pattern asPatternValue(Object value) {
         if (value == null) {
-            return Node.of(Void.class, List.of());
+            return NodePattern.of(Void.class, List.of());
         }
         return switch (value) {
             case Iterable<?> ignored -> asNode(value);
@@ -257,12 +257,12 @@ public final class PatternMatcher {
                 || type == String.class || type.isEnum() || type == Class.class;
     }
 
-    public record Match(Object node, Map<String, Node> bindings) {
+    public record Match(Object node, Map<String, NodePattern> bindings) {
         public Match {
             bindings = Map.copyOf(Objects.requireNonNull(bindings, "bindings cannot be null"));
         }
 
-        public Node get(String id) {
+        public NodePattern get(String id) {
             return bindings.get(id);
         }
     }
@@ -278,10 +278,10 @@ public final class PatternMatcher {
     }
 
     private static final class Bindings {
-        private final Map<String, Node> values = new LinkedHashMap<>();
+        private final Map<String, NodePattern> values = new LinkedHashMap<>();
 
-        private boolean bind(String id, Node value) {
-            Node existing = values.putIfAbsent(id, value);
+        private boolean bind(String id, NodePattern value) {
+            NodePattern existing = values.putIfAbsent(id, value);
             return existing == null || existing.equals(value);
         }
 
@@ -296,7 +296,7 @@ public final class PatternMatcher {
             values.putAll(other.values);
         }
 
-        private Map<String, Node> snapshot() {
+        private Map<String, NodePattern> snapshot() {
             return Map.copyOf(values);
         }
     }

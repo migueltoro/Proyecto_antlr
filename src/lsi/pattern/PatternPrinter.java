@@ -1,4 +1,4 @@
-package lsi.ast;
+package lsi.pattern;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
@@ -7,11 +7,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
-import lsi.ast.Pattern.Capture;
-import lsi.ast.Pattern.Constant;
-import lsi.ast.Pattern.Node;
-import lsi.ast.Pattern.PGuard;
-import lsi.ast.Pattern.Wildcard;
+import lsi.pattern.Pattern.Constant;
+import lsi.pattern.Pattern.Guard;
+import lsi.pattern.Pattern.NodePattern;
+import lsi.pattern.Pattern.Variable;
+import lsi.pattern.Pattern.Wildcard;
 
 public final class PatternPrinter {
     private PatternPrinter() {
@@ -22,9 +22,9 @@ public final class PatternPrinter {
         return switch (pattern) {
             case Wildcard ignored -> "_";
             case Constant constant -> formatValue(constant.value());
-            case Capture capture -> "**" + capture.id() + "**" + print(capture.body());
-            case PGuard guard -> "guard(" + print(guard.pattern()) + ", <predicate>)";
-            case Node node -> node.type().getSimpleName() + "(" + formatPatterns(node.children()) + ")";
+            case Variable variable -> "**" + variable.id() + "**" + print(variable.body());
+            case Guard guard -> "guard(" + print(guard.pattern()) + ", <predicate>)";
+            case NodePattern node -> node.type().getSimpleName() + "(" + formatPatterns(node.children()) + ")";
         };
     }
 
@@ -43,15 +43,15 @@ public final class PatternPrinter {
         switch (pattern) {
             case Wildcard ignored -> appendLine(result, indent, "_");
             case Constant constant -> appendLine(result, indent, formatValue(constant.value()));
-            case Capture capture -> {
-                appendLine(result, indent, "**" + capture.id() + "**:");
-                appendPatternTree(capture.body(), result, indent + 1);
+            case Variable variable -> {
+                appendLine(result, indent, "**" + variable.id() + "**:");
+                appendPatternTree(variable.body(), result, indent + 1);
             }
-            case PGuard guard -> {
+            case Guard guard -> {
                 appendLine(result, indent, "guard:");
                 appendPatternTree(guard.pattern(), result, indent + 1);
             }
-            case Node node -> {
+            case NodePattern node -> {
                 appendLine(result, indent, node.type().getSimpleName());
                 for (int i = 0; i < node.children().size(); i++) {
                     appendLine(result, indent + 1, "[" + i + "]:");
@@ -77,7 +77,7 @@ public final class PatternPrinter {
             case null -> "null";
             case String text -> "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
             case Character character -> "'" + character + "'";
-            case Node node -> node.type() == Void.class
+            case NodePattern node -> node.type() == Void.class
                     ? "null"
                     : node.type().getSimpleName() + "(" + formatPatterns(node.children()) + ")";
             case Iterable<?> iterable -> {

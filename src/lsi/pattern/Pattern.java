@@ -1,36 +1,36 @@
-package lsi.ast;
+package lsi.pattern;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
 
-public sealed interface Pattern permits Pattern.Node, Pattern.Capture, Pattern.Wildcard,
-        Pattern.Constant, Pattern.PGuard {
+public sealed interface Pattern permits Pattern.NodePattern, Pattern.Variable, Pattern.Wildcard,
+        Pattern.Constant, Pattern.Guard {
 
-    record Node(Class<?> type, List<Pattern> children) implements Pattern {
-        public Node {
+    record NodePattern(Class<?> type, List<Pattern> children) implements Pattern {
+        public NodePattern {
             Objects.requireNonNull(type, "type cannot be null");
             children = List.copyOf(Objects.requireNonNull(children, "children cannot be null"));
         }
 
-        public static Node of(Class<?> type, List<Pattern> children) {
+        public static NodePattern of(Class<?> type, List<Pattern> children) {
             Objects.requireNonNull(type, "type cannot be null");
             Objects.requireNonNull(children, "children cannot be null");
-            return new Node(type, children);
+            return new NodePattern(type, children);
         }
     }
 
-    record Capture(String id, Pattern body) implements Pattern {
-        public Capture {
+    record Variable(String id, Pattern body) implements Pattern {
+        public Variable {
             Objects.requireNonNull(id, "id cannot be null");
             Objects.requireNonNull(body, "body cannot be null");
         }
 
-        public static Capture of(String id, Pattern body) {
+        public static Variable of(String id, Pattern body) {
             Objects.requireNonNull(id, "id cannot be null");
             Objects.requireNonNull(body, "body cannot be null");
-            return new Capture(id, body);
+            return new Variable(id, body);
         }
     }
 
@@ -51,16 +51,16 @@ public sealed interface Pattern permits Pattern.Node, Pattern.Capture, Pattern.W
         }
     }
 
-    record PGuard(Pattern pattern, Predicate<Map<String, Node>> condition) implements Pattern {
-        public PGuard {
+    record Guard(Pattern pattern, Predicate<Map<String, NodePattern>> condition) implements Pattern {
+        public Guard {
             Objects.requireNonNull(pattern, "pattern cannot be null");
             Objects.requireNonNull(condition, "condition cannot be null");
         }
 
-        public static PGuard of(Pattern pattern, Predicate<Map<String, Node>> condition) {
+        public static Guard of(Pattern pattern, Predicate<Map<String, NodePattern>> condition) {
             Objects.requireNonNull(pattern, "pattern cannot be null");
             Objects.requireNonNull(condition, "condition cannot be null");
-            return new PGuard(pattern, condition);
+            return new Guard(pattern, condition);
         }
     }
 }
