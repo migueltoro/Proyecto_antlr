@@ -22,7 +22,7 @@ public final class PatternPrinter {
         return switch (pattern) {
             case Wildcard ignored -> "_";
             case Constant constant -> formatValue(constant.value());
-            case Variable capture -> "**" + capture.id() + "**" + print(capture.body());
+            case Variable capture -> "\"" + capture.id() + "\", " + print(capture.body());
             case Guard guard -> "guard(" + print(guard.pattern()) + ", <predicate>)";
             case Node node -> node.type().getSimpleName() + "(" + formatPatterns(node.children()) + ")";
         };
@@ -44,7 +44,7 @@ public final class PatternPrinter {
             case Wildcard ignored -> appendLine(result, indent, "_");
             case Constant constant -> appendLine(result, indent, formatValue(constant.value()));
             case Variable capture -> {
-                appendLine(result, indent, "**" + capture.id() + "**:");
+                appendLine(result, indent, "\"" + capture.id() + "\":");
                 appendPatternTree(capture.body(), result, indent + 1);
             }
             case Guard guard -> {

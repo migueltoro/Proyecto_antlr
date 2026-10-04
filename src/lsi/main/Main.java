@@ -7,7 +7,7 @@ import lsi.parser.PLIModelParser;
 import lsi.visitor.ast.ASTBuilder;
 import lsi.visitor.types.ASTTypeChecker;
 import lsi.listener.errors.SyntaxErrorListener;
-import lsi.visitor.ast.PrettyAstPrinter;
+//import lsi.visitor.ast.PrettyAstPrinter;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 public class Main {
@@ -68,7 +68,7 @@ public class Main {
                         System.out.println("Verificación de tipos completada sin errores.");
                 }
 
-                System.out.println(PrettyAstPrinter.prettyPrint(checkedAst));
+           //     System.out.println(PrettyAstPrinter.prettyPrint(checkedAst));
 
                 boolean runPatternExamples = java.util.Arrays.stream(args)
                                 .anyMatch("--patterns"::equals);

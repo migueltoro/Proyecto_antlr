@@ -22,10 +22,10 @@ public final class PatternASTExamples {
         printCategoryCount("Restricciones", ast, AST.Constraint.class);
         printCategoryCount("Cotas", ast, AST.Bound.class);
         System.out.println("=================================================");
-        System.out.println("[PATTERN AST] Declaraciones Integer inicializadas: ");  
+ //       System.out.println("[PATTERN AST] Declaraciones Integer inicializadas: ");  
         runInitializedIntegerDeclarationExample(ast);
          System.out.println("=================================================");
-        System.out.println("[PATTERN AST] Transformación: "); 
+//      System.out.println("[PATTERN AST] Transformación: "); 
         runZeroToOneTransformationExample(ast);
         /* 
         System.out.println("=================================================");
